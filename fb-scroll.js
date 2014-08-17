@@ -63,7 +63,11 @@
  * Twitter: @blakekus
  * Contribute: github.com/kus
  *
- * Version: 0.2.0
+ * Copyright (c) 2014 Stiliyan Ivanov
+ * Released under MIT license.
+ *
+ * Contribute: github.com/stily
+ * Version: 1.1
  */
 
 (function(){
@@ -74,44 +78,44 @@
 		var _scrollTimerMilliseconds = 500;
 		var _scrollEventDelay = 100;
 		var _headerGapToIFrame = 28;
-		var _inFacebook = null;
 		var _init = function(){
 			if (typeof window.fbAsyncInit !== 'function') {
-				alert('window.fbAsyncInit does not exit yet? Place fb-scroll.js just after your window.fbAsyncInit function!');
+				console.log('window.fbAsyncInit does not exit yet? Place fb-scroll.js just after your window.fbAsyncInit function!');
 				return;
 			}
 			var _oldfbAsyncInit = window.fbAsyncInit;
 			window.fbAsyncInit = function() {
 				_oldfbAsyncInit();
 				if (typeof window.FB !== 'object') {
-					alert('FB does not exist?');
+					console.log('FB does not exist?');
 					return;
 				}
 				if (typeof window.FB.Canvas !== 'object') {
-					alert('FB.Canvas does not exist?');
+					console.log('FB.Canvas does not exist?');
 					return;
 				}
 				if (typeof window.FB.Canvas.getPageInfo !== 'function') {
-					alert('FB.Canvas.getPageInfo does not exist?');
-					return;
+					_bindScroll();
+				} else {
+					_scrollTimer = setInterval(_poll, _scrollTimerMilliseconds);
 				}
-				_poll();
-				_scrollTimer = setInterval(_poll, _scrollTimerMilliseconds);
 			}
 		};
-		var _bindScroll = function(){
-			if ( window.addEventListener ) {
-				window.addEventListener( 'scroll', _handleScroll, false );
-			} else if ( window.attachEvent ) {
-				window.attachEvent( 'onscroll', _handleScroll );
+		
+		var _bindScroll = function() {
+			if (window.addEventListener) {
+				window.addEventListener('scroll', _handleScroll, false);
+			} else if (window.attachEvent) {
+				window.attachEvent('onscroll', _handleScroll);
 			} else {
 				window['onscroll'] = _handleScroll;
 			}
 		};
+		
 		var _handleScroll = function(){
-			window.clearTimeout(_scrollTimer);
 			_scrollTimer = window.setTimeout(_onScroll, _scrollEventDelay);
 		};
+		
 		// http://www.howtocreate.co.uk/tutorials/javascript/browserwindow
 		var _getHeight = function(){
 			var h = 0;
@@ -127,6 +131,7 @@
 			}
 			return h;
 		};
+		
 		// http://www.howtocreate.co.uk/tutorials/javascript/browserwindow
 		var _getScrollY = function(){
 			var y = 0;
@@ -142,39 +147,56 @@
 			}
 			return y;
 		}
+		
 		var _onScroll = function(){
 			_dispatch({
 				'viewportHeight': _getHeight(),
 				'viewportTop': _getScrollY()
 			});
 		};
+		
 		var _poll = function() {
-			if(_inFacebook === false){
-				clearInterval(_scrollTimer);
-				_bindScroll();
-			}else{
-				if(_inFacebook === null){
-					_inFacebook = false;
+			window.FB.Canvas.getPageInfo(function(info) {
+				var viewportHeight = info.clientHeight,
+					floatingHeaderSize = info.offsetTop - _headerGapToIFrame,
+					viewportTop = info.scrollTop;
+				if (viewportTop < _headerGapToIFrame) {
+					// 141px header
+					viewportHeight -= floatingHeaderSize + (_headerGapToIFrame - viewportTop);
+				} else {
+					// 113px floating header
+					viewportHeight -= floatingHeaderSize;
 				}
-				window.FB.Canvas.getPageInfo(function(info) {
-					_inFacebook = true;
-					var viewportHeight = info.clientHeight,
-						floatingHeaderSize = info.offsetTop - _headerGapToIFrame,
-						viewportTop = info.scrollTop;
-					if (viewportTop < _headerGapToIFrame) {
-						// 141px header
-						viewportHeight -= floatingHeaderSize + (_headerGapToIFrame - viewportTop);
-					} else {
-						// 113px floating header
-						viewportHeight -= floatingHeaderSize;
-					}
-					_dispatch({
-						'viewportHeight': viewportHeight,
-						'viewportTop': viewportTop
-					});
+				_dispatch({
+					'viewportHeight': viewportHeight,
+					'viewportTop': viewportTop
 				});
-			}
+			});
 		};
+		/* 
+		 *	Fire "fb-scroll" event with jQuery or user regular JavaScript
+		 */
+		var _dispatchEvent = function(obj) {
+			var eventName = 'fb-scroll';
+			
+			if (typeof jQuery === 'function') {
+				jQuery(document).trigger(eventName, obj);
+			} else {
+				var event;
+				
+				if (document.addEventListener) {
+					event = new Event(eventName);
+					event.scrollData = obj;
+					document.dispatchEvent(event);
+				} else {
+					event = document.createEventObject();
+					event.scrollData = obj;
+					document.fireEvent('on' + eventName, event);
+				}
+			}
+			
+		};
+		
 		var _dispatch = function(obj){
 			var viewportTop = obj.viewportTop;
 			var viewportHeight = obj.viewportHeight;
@@ -195,15 +217,11 @@
 					'viewportMiddlePercent': Math.ceil(viewportTopPercent + ((viewportBottomPercent - viewportTopPercent) / 2)),
 					'viewportBottomPercent': viewportBottomPercent
 				};
-				// FB.Event.fire creates a console message "The method FB.Event.fire is not officially supported by Facebook and access to it will soon be removed."
-				// To avoid it, you can subscribe to the event "fb-scroll" with jQuery
-				if (typeof jQuery === 'function') {
-					jQuery(document).trigger('fb-scroll', obj);
-				} else {
-					window.FB.Event.fire('scroll', obj);
-				}
+				
+				_dispatchEvent(obj);
 			}
 		};
+		
 		return {
 			init: _init
 		};
