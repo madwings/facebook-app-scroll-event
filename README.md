@@ -89,8 +89,9 @@ Warning: this causes the following message to appear in the console "The method 
 
 ## Copyright
 
-Copyright (c) 2013 Blake Kus [blakek.us](http://blakek.us)
-Copyright (c) 2014 Stiliyan Ivanov
+Copyright (c) 2014 Stiliyan Ivanov  
+Copyright (c) 2013 Blake Kus [blakek.us](http://blakek.us)  
+
 
 This plugin is dual licenced under MIT and GPL Version 2 licences. 
 
